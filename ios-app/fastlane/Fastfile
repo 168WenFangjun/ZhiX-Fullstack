@@ -1,0 +1,25 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Build and test"
+  lane :test do
+    scan(scheme: "ZhiX", devices: ["iPhone 15 Pro"], clean: true)
+  end
+
+  desc "Build for release"
+  lane :build do
+    gym(scheme: "ZhiX", export_method: "app-store", clean: true)
+  end
+
+  desc "Upload to TestFlight"
+  lane :beta do
+    build
+    upload_to_testflight(skip_waiting_for_build_processing: true)
+  end
+
+  desc "Upload to App Store"
+  lane :release do
+    build
+    upload_to_app_store(submit_for_review: true, automatic_release: false)
+  end
+end

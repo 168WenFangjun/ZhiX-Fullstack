@@ -1,0 +1,16 @@
+.article-grid {
+  column-count: 3;
+  column-gap: 2rem;
+}
+
+@media (max-width: 1024px) {
+  .article-grid {
+    column-count: 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .article-grid {
+    column-count: 1;
+  }
+}

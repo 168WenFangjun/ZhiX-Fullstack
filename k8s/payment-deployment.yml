@@ -1,0 +1,132 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zhix-payment
+  namespace: zhix-prod
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: zhix-payment
+  template:
+    metadata:
+      labels:
+        app: zhix-payment
+    spec:
+      containers:
+      - name: payment
+        image: ghcr.io/your-org/zhix-payment:latest
+        ports:
+        - containerPort: 8081
+        env:
+        - name: PORT
+          value: "8081"
+        - name: GIN_MODE
+          value: "release"
+        - name: FRONTEND_URL
+          valueFrom:
+            configMapKeyRef:
+              name: zhix-config
+              key: frontend-url
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: zhix-secrets
+              key: db-host
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: zhix-secrets
+              key: db-user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: zhix-secrets
+              key: db-password
+        - name: DB_NAME
+          value: "zhix_payment"
+        - name: DB_PORT
+          value: "5432"
+        - name: REDIS_HOST
+          valueFrom:
+            secretKeyRef:
+              name: zhix-secrets
+              key: redis-host
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: zhix-secrets
+              key: redis-password
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: zhix-secrets
+              key: jwt-secret
+        - name: APPLE_PAY_MERCHANT_ID
+          valueFrom:
+            secretKeyRef:
+              name: apple-pay-secrets
+              key: merchant-id
+        - name: APPLE_PAY_DISPLAY_NAME
+          value: "ZhiX Club"
+        - name: APPLE_PAY_DOMAIN
+          value: "zhix.club"
+        - name: APPLE_PAY_CERT_FILE
+          value: "/certs/merchant_id.pem"
+        - name: APPLE_PAY_KEY_FILE
+          value: "/certs/merchant_id.key"
+        - name: PAYMENT_GATEWAY
+          value: "stripe"
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: payment-secrets
+              key: stripe-secret-key
+        volumeMounts:
+        - name: apple-pay-certs
+          mountPath: /certs
+          readOnly: true
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+      volumes:
+      - name: apple-pay-certs
+        secret:
+          secretName: apple-pay-certs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zhix-payment
+  namespace: zhix-prod
+spec:
+  selector:
+    app: zhix-payment
+  ports:
+  - protocol: TCP
+    port: 8081
+    targetPort: 8081
+  type: ClusterIP

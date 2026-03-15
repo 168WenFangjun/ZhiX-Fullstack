@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zhix-config
+data:
+  db-name: "zhix"
+  redis-host: "redis-service:6379"
+  environment: "production"
+  log-level: "info"
+  apple-pay-merchant-id: "merchant.club.zhix"
+  apple-pay-display-name: "ZhiX Club"
+  apple-pay-domain: "zhix.club"
+  payment-gateway: "stripe"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: zhix-secrets
+type: Opaque
+stringData:
+  db-host: "postgres-service"
+  db-user: "zhix_user"
+  db-password: "CHANGE_ME_IN_PRODUCTION"
+  jwt-secret: "CHANGE_ME_IN_PRODUCTION_USE_STRONG_SECRET"
+  redis-password: "CHANGE_ME_IN_PRODUCTION"
+  stripe-secret-key: "CHANGE_ME_STRIPE_SECRET_KEY"
+  stripe-publishable-key: "CHANGE_ME_STRIPE_PUBLISHABLE_KEY"
+  adyen-api-key: "CHANGE_ME_ADYEN_API_KEY"
+  adyen-merchant-account: "CHANGE_ME_ADYEN_MERCHANT_ACCOUNT"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: apple-pay-certs
+type: Opaque
+data:
+  # Base64编码的Apple Pay证书和密钥
+  # 使用: kubectl create secret generic apple-pay-certs --from-file=merchant_id.pem --from-file=merchant_id.key --from-file=apple_root_ca.pem
+  merchant_id.pem: ""
+  merchant_id.key: ""
+  apple_root_ca.pem: ""

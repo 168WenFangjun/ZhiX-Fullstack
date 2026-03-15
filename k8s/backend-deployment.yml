@@ -1,0 +1,177 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zhix-backend
+  labels:
+    app: zhix-backend
+    version: v1
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: zhix-backend
+  template:
+    metadata:
+      labels:
+        app: zhix-backend
+        version: v1
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - zhix-backend
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: backend
+        image: ghcr.io/your-org/zhix/backend:main
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: zhix-secrets
+              key: db-host
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: zhix-secrets
+              key: db-user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: zhix-secrets
+              key: db-password
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: zhix-config
+              key: db-name
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: zhix-config
+              key: redis-host
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: zhix-secrets
+              key: jwt-secret
+        - name: APPLE_PAY_MERCHANT_ID
+          valueFrom:
+            configMapKeyRef:
+              name: zhix-config
+              key: apple-pay-merchant-id
+        - name: APPLE_PAY_DISPLAY_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: zhix-config
+              key: apple-pay-display-name
+        - name: APPLE_PAY_DOMAIN
+          valueFrom:
+            configMapKeyRef:
+              name: zhix-config
+              key: apple-pay-domain
+        - name: PAYMENT_GATEWAY
+          valueFrom:
+            configMapKeyRef:
+              name: zhix-config
+              key: payment-gateway
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: zhix-secrets
+              key: stripe-secret-key
+        - name: ADYEN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: zhix-secrets
+              key: adyen-api-key
+              optional: true
+        - name: ADYEN_MERCHANT_ACCOUNT
+          valueFrom:
+            secretKeyRef:
+              name: zhix-secrets
+              key: adyen-merchant-account
+              optional: true
+        - name: APPLE_PAY_CERT_FILE
+          value: "/etc/apple-pay-certs/merchant_id.pem"
+        - name: APPLE_PAY_KEY_FILE
+          value: "/etc/apple-pay-certs/merchant_id.key"
+        - name: APPLE_ROOT_CA_FILE
+          value: "/etc/apple-pay-certs/apple_root_ca.pem"
+        volumeMounts:
+        - name: apple-pay-certs
+          mountPath: /etc/apple-pay-certs
+          readOnly: true
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: apple-pay-certs
+        secret:
+          secretName: apple-pay-certs
+          defaultMode: 0400
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zhix-backend
+  labels:
+    app: zhix-backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: zhix-backend
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
